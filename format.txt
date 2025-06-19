@@ -1,0 +1,242 @@
+Fully stub here - idk
+```
+using SmallFeatureTransformer = FeatureTransformer<TransformedFeatureDimensionsSmall>;
+using SmallNetworkArchitecture =
+  NetworkArchitecture<TransformedFeatureDimensionsSmall, L2Small, L3Small>;
+
+using BigFeatureTransformer  = FeatureTransformer<TransformedFeatureDimensionsBig>;
+using BigNetworkArchitecture = NetworkArchitecture<TransformedFeatureDimensionsBig, L2Big, L3Big>;
+
+using NetworkBig   = Network<BigNetworkArchitecture, BigFeatureTransformer>;
+using NetworkSmall = Network<SmallNetworkArchitecture, SmallFeatureTransformer>;
+```
+Assume type=big (NetworkBig), lscpu:
+```
+fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx
+fxsr sse sse2 ht tm pbe syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl
+xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3
+cx16 xtpr pdcm pcid sse4_1 sse4_2 popcnt tsc_deadline_timer xsave avx lahf_lm epb pti ssbd ibrs
+ibpb stibp tpr_shadow flexpriority ept vpid xsaveopt dtherm arat pln pts vnmi md_clear flush_l1d
+```
+
+```
+// Read network header
+template<typename Arch, typename Transformer>
+bool Network<Arch, Transformer>::read_header(std::istream&  stream,
+                                             std::uint32_t* hashValue,
+                                             std::string*   desc) const {
+    std::uint32_t version, size;
+
+    version    = read_little_endian<std::uint32_t>(stream);
+    *hashValue = read_little_endian<std::uint32_t>(stream);
+    size       = read_little_endian<std::uint32_t>(stream);
+    if (!stream || version != Version)
+        return false;
+    desc->resize(size);
+    stream.read(&(*desc)[0], size);
+    return !stream.fail();
+}
+
+template<typename Arch, typename Transformer>
+bool Network<Arch, Transformer>::read_parameters(std::istream& stream,
+                                                 std::string&  netDescription) const {
+    std::uint32_t hashValue;
+    if (!read_header(stream, &hashValue, &netDescription)) // [1]
+        return false;
+    if (hashValue != Network::hash)
+        return false;
+    if (!Detail::read_parameters(stream, *featureTransformer)) // [2]
+        return false;
+    for (std::size_t i = 0; i < LayerStacks; ++i)// constexpr_resolve(LayerStacks)=8
+    {
+        if (!Detail::read_parameters(stream, network[i])) // [3, 4, 5, 6, 7, 8, 9, 10]
+            return false;
+    }
+    return stream && stream.peek() == std::ios::traits_type::eof();
+}
+```
+3 uint32_t bytes [version, hash, size] [[little_endian]] [1]
+1 string [size] [1]
+```
+namespace Detail {
+
+// Read evaluation function parameters
+template<typename T>
+bool read_parameters(std::istream& stream, T& reference) {
+
+    std::uint32_t header;
+    header = read_little_endian<std::uint32_t>(stream);
+    if (!stream || header != T::get_hash_value())
+        return false;
+    return reference.read_parameters(stream);
+}
+}
+    bool FeatureTransformer<...>::read_parameters(std::istream& stream) {
+        // constexpr_resolve(BiasType)=int16_t
+        // constexpr_resolve(WeightType)=int16_t
+        // constexpr_resolve(PSQTWeightType)=int32_t
+        // constexpr_resolve(HalfDimensions)
+        //  = constexpr_resolve(FeatureTransformer<TransformedFeatureDimensionsBig>::TransformedFeatureDimensions)
+        //  = constexpr_resolve(TransformedFeatureDimensionsBig)=3072
+        // constexpr_resolve(PSQTBuckets)=8
+        // constexpr_resolve(InputDimensions)
+        //  = constexpr_resolve(FeaturesSet::Dimensions)
+        //  = constexpr_resolve(Features::HalfKAv2_hm)
+        //  = constexpr_resolve(SQUARE_NB*PS_NB/2)
+        //  = constexpr_resolve(64*11*64/2) = 22528
+        read_leb_128<BiasType>(stream, biases, HalfDimensions);
+        read_leb_128<WeightType>(stream, weights, HalfDimensions * InputDimensions);
+        read_leb_128<PSQTWeightType>(stream, psqtWeights, PSQTBuckets * InputDimensions);
+
+        permute_weights();
+        scale_weights(true);
+        return !stream.fail();
+    }
+```[2]
+1 uint32_t [hash] [[little_endian]] [2]
+3072 int16_t [biases] [[little_endian]]
+// constexpr_resolve(HalfDimensions*InputDimensions)
+69206016 int16_t [weights] [[little_endian]]
+// constexpr_resolve(PSQTBuckets*InputDimensions)
+180224 int16_t [psqtWeights] [[little-endian]]
+
+```
+// constexpr_resolve(TransformedFeatureDimensions)=
+//  = constexpr_resolve(L1)
+//  = constexpr_resolve(TransformedFeatureDimensionsBig) = 3072
+// constexpr_resolve(FC_0_OUTPUTS)
+//  = constexpr_resolve(L2)
+//  = constexpr_resolve(L2Big) = 15
+// constexpr_resolve(FC_1_INPUTS)
+//  = constexpr_resolve(L3)
+//  = constexpr_resolve(L3Big) = 32
+    // Read network parameters
+    bool read_parameters(std::istream& stream) {
+        return fc_0.read_parameters(stream) // [11, 16, 21, 26, 31, 36, 41, 46]
+            && ac_0.read_parameters(stream) // [12, 17, 22, 27, 32, 37, 42, 47]
+            && fc_1.read_parameters(stream) // [13, 18, 23, 28, 33, 38, 43, 48]
+            && ac_1.read_parameters(stream) // [14, 19, 24, 29, 34, 39, 44, 49]
+            && fc_2.read_parameters(stream);// [15, 20, 25, 30, 35, 40, 45, 50]
+    }
+```[3,4,5,6,7,8,9,10]
+1 uint32_t [hash] [[little_endian]] [3]
+```
+// constexpr_resolve(InputDimensions)
+//  = constexpr_resolve(InDims)
+//  = constexpr_resolve(TransformedFeatureDimensions) (NetworkArchitecture) = 3072
+// constexpr_resolve(OutputDimensions)
+//  = constexpr_resolve(OutDims)
+//  = constexpr_resolve(FC_0_OUTPUTS) = 15+1 = 16
+// constexpr_resolve(PaddedInputDimensions)
+//  = constexpr_resolve(ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth))
+//  = constexpr_resolve(ceil_to_multiple<uint32_t>(3072, 32)) = 3072
+#if (USE_SSSE3 | (USE_NEON >= 8))
+    static constexpr IndexType ChunkSize = 4;
+#else
+    static constexpr IndexType ChunkSize = 1;
+#endif
+
+    static constexpr IndexType get_weight_index_scrambled(IndexType i) {
+        return (i / ChunkSize) % (PaddedInputDimensions / ChunkSize) * OutputDimensions * ChunkSize
+             + i / PaddedInputDimensions * ChunkSize + i % ChunkSize;
+    }
+
+    static constexpr IndexType get_weight_index(IndexType i) {
+#if (USE_SSSE3 | (USE_NEON >= 8))
+        return get_weight_index_scrambled(i);
+#else
+        return i;
+#endif
+    }
+
+    // Read network parameters
+    bool read_parameters(std::istream& stream) {
+        read_little_endian<BiasType>(stream, biases, OutputDimensions);
+        // constexpr_resolve(OutputDimensions * PaddedInputDimensions)
+        //  = constexpr_resolve(16*3072) = 49152
+        for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+            weights[get_weight_index(i)] = read_little_endian<WeightType>(stream);
+
+        return !stream.fail();
+    }
+```[11, 16, 21, 26, 31, 36, 41, 46]
+16 int16_t [biases] [[little-endian]]
+41952x1 int16_t [weights] [[little-endian]] (NOTE: Little-endian for entry, big-endian for THIS array)
+```
+    // Read network parameters
+    bool read_parameters(std::istream&) { return true; }
+```[12, 17, 22, 27, 32, 37, 42, 47]
+Empty
+```
+// constexpr_resolve(InputDimensions)
+//  = constexpr_resolve(InDims)
+//  = constexpr_resolve(FC_0_OUTPUTS*2) (NetworkArchitecture) = 15*2 = 30
+// constexpr_resolve(OutputDimensions)
+//  = constexpr_resolve(OutDims)
+//  = constexpr_resolve(FC_1_OUTPUTS) = 32
+// constexpr_resolve(PaddedInputDimensions)
+//  = constexpr_resolve(ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth))
+//  = constexpr_resolve(ceil_to_multiple<uint32_t>(30, 32)) = 32
+    static constexpr IndexType get_weight_index_scrambled(IndexType i) {
+        return (i / 4) % (PaddedInputDimensions / 4) * OutputDimensions * 4
+             + i / PaddedInputDimensions * 4 + i % 4;
+    }
+
+    static constexpr IndexType get_weight_index(IndexType i) {
+#ifdef ENABLE_SEQ_OPT
+        return get_weight_index_scrambled(i);
+#else
+        return i;
+#endif
+    }
+
+    // Read network parameters
+    bool read_parameters(std::istream& stream) {
+        read_little_endian<BiasType>(stream, biases, OutputDimensions);
+        for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+            weights[get_weight_index(i)] = read_little_endian<WeightType>(stream);
+
+        return !stream.fail();
+    }
+```[13, 18, 23, 28, 33, 38, 43, 48]
+32 int16_t [biases] [[little-endian]]
+1024x1 int16_t [weights] [[little-endian]] (NOTE: Little-endian for entry, big-endian for THIS array)
+```
+    // Read network parameters
+    bool read_parameters(std::istream&) { return true; }
+```[14, 19, 24, 29, 34, 39, 44, 49]
+Empty
+```
+// constexpr_resolve(InputDimensions)
+//  = constexpr_resolve(InDims)
+//  = constexpr_resolve(FC_1_OUTPUTS) (NetworkArchitecture) = 15
+// constexpr_resolve(OutputDimensions)
+//  = constexpr_resolve(OutDims)
+//  = 1
+// constexpr_resolve(PaddedInputDimensions)
+//  = constexpr_resolve(ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth))
+//  = constexpr_resolve(ceil_to_multiple<uint32_t>(15, 32)) = 32
+    static constexpr IndexType get_weight_index_scrambled(IndexType i) {
+        return (i / 4) % (PaddedInputDimensions / 4) * OutputDimensions * 4
+             + i / PaddedInputDimensions * 4 + i % 4;
+    }
+
+    static constexpr IndexType get_weight_index(IndexType i) {
+#ifdef ENABLE_SEQ_OPT
+        return get_weight_index_scrambled(i);
+#else
+        return i;
+#endif
+    }
+
+    // Read network parameters
+    bool read_parameters(std::istream& stream) {
+        read_little_endian<BiasType>(stream, biases, OutputDimensions);
+        for (IndexType i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+            weights[get_weight_index(i)] = read_little_endian<WeightType>(stream);
+
+        return !stream.fail();
+    }
+```[15, 20, 25, 30, 35, 40, 45, 50]
+1 int16_t [biases] [[little-endian]]
+480x1 int16_t [weights] [[little-endian]] (NOTE: Little-endian for entry, big-endian for THIS array)
