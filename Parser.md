@@ -1,4 +1,7 @@
 # Stockfish's NNUE file format (feature set: HalfKA_v2_hm)
+
+**NOTE: THIS IS FILE FORMAT, NOT INCLUDES CLIPPED RELU**
+
 Attributes used here:
 - `[hash]` - hash values to compare against the Stockfish constexpr `T::get_hash_value()`
 - `[biases]`
