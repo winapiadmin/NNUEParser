@@ -79,8 +79,39 @@ namespace NNUEParser{
         inline int rule50_count() const{
             return b.halfMoveClock();
         }
+        DirtyPiece make_move(chess::Move m) {
+            DirtyPiece dp;
+            dp.pc = to_engine_piece(b.at(m.from()).internal());
+            dp.from = (Square)m.from().index();
+            Color  us       = side_to_move();
+            Color  them     = ~us;
+            dp.to = (Square)m.to().index();
+            dp.add_sq = SQ_NONE;
+            Piece  captured = m.typeOf() == m.ENPASSANT ? make_piece(them, PAWN) : piece_on(dp.to);
+            if (m.typeOf()==m.CASTLING) captured=NO_PIECE;
+            else if (captured){
+                Square capsq = m.typeOf() == m.ENPASSANT ? Square(m.to().index() + (us == WHITE ? 8 : -8)) : dp.to;
+                dp.remove_pc = captured;
+                dp.remove_sq = capsq;
+            }
+            else dp.remove_sq=SQ_NONE;
+            if (m.typeOf() == m.PROMOTION){
+                dp.add_pc = make_piece(us, static_cast<PieceType>(1+m.promotionType())); // promotionType() returns a PieceType, which is 0 for NO_PIECE_TYPE, so we add 1 to get the Piece
+                dp.add_sq = dp.to;
+                dp.to= SQ_NONE; // promotion moves are not allowed to have a to square
+            }
+            b.makeMove(m); // finally no
+            return dp;
+        }
+        void undo_move(chess::Move m){b.unmakeMove(m);}
+        void do_null_move(){
+            b.makeNullMove();
+        }
+        void undo_null_move(){
+            b.unmakeNullMove();
+        }
+        chess::Board b; // exposure to generate legal moves
         private:
-        chess::Board b;
         inline Piece to_engine_piece(chess::Piece::underlying u) const{
             switch (u) {
                 case chess::Piece::underlying::WHITEPAWN: return W_PAWN;

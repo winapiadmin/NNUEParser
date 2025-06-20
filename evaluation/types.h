@@ -20,6 +20,7 @@
 #define TYPES_H_INCLUDED
 #include <cstdint>
 #include <cassert>
+#include <bitset>
 namespace NNUEParser
 {
     // clang-format off
@@ -82,6 +83,24 @@ ENABLE_INCR_OPERATORS_ON(Square)
     constexpr int MAX_PLY = 246;
 
     using Bitboard = uint64_t;
+
+// Counts the number of non-zero bits in a bitboard.
+inline int popcount(Bitboard b) {
+
+#ifndef USE_POPCNT
+
+    return std::bitset<64>(b).count();
+
+#elif defined(_MSC_VER)
+
+    return int(_mm_popcnt_u64(b));
+
+#else  // Assumed gcc or compatible compiler
+
+    return __builtin_popcountll(b);
+
+#endif
+}
 
     // Returns the least significant bit in a non-zero bitboard.
     inline Square lsb(Bitboard b)

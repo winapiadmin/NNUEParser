@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <cmath>
+#include <chrono>
 namespace NNUEParser{
 // Returns a static, purely materialistic evaluation of the position from
 // the point of view of the side to move. It can be divided by PawnValue to get
@@ -104,6 +105,20 @@ int main(){
     NNUEParser::AccumulatorCaches cache(nn);
     chess::Board b;
     NNUEParser::Position pos(b);
-    std::cout<<"DISCLAIMER: Using this NNUE model and output requires converting to centipawns (idk why)\n";
-    std::cout<<to_cp(NNUEParser::evaluate(nn,pos,stack,cache,0), pos);
+
+    std::cout << "DISCLAIMER: Using this NNUE model and output requires converting to centipawns\n";
+
+    constexpr int N = 10000000; // Number of evaluations to benchmark
+
+    auto start = std::chrono::high_resolution_clock::now();
+    int total = 0;
+    for (int i = 0; i < N; ++i) {
+        total = to_cp(NNUEParser::evaluate(nn, pos, stack, cache, 0), pos);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Total time: " << elapsed.count() << " ms\n";
+    std::cout << "Average time per evaluation: " << (elapsed.count() / N) << " ms, "<<(1.0/(elapsed.count()/N))<<" eval/s\n";
+    std::cout << "Final dummy value: " << total << "\n";
 }
