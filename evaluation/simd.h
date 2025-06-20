@@ -18,7 +18,11 @@
 
 #ifndef NNUE_SIMD_H_INCLUDED
 #define NNUE_SIMD_H_INCLUDED
-
+    #ifdef IS_64BIT
+constexpr bool Is64Bit = true;
+    #else
+constexpr bool Is64Bit = false;
+    #endif
 #if defined(USE_AVX2)
 #include <immintrin.h>
 
