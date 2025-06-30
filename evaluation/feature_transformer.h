@@ -26,12 +26,12 @@
 #include <cstring>
 #include <iosfwd>
 
-#include "position.h"
-#include "types.h"
 #include "accumulator.h"
 #include "architecture.h"
 #include "common.h"
+#include "position.h"
 #include "simd.h"
+#include "types.h"
 
 namespace NNUEParser {
 

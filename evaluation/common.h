@@ -31,21 +31,22 @@
 // https://stackoverflow.com/a/27088447
 #include <cstdint>
 
-class Endian
-{
-private:
+class Endian {
+   private:
     static constexpr uint32_t uint32_ = 0x01020304;
-    static constexpr uint8_t magic_ = (const uint8_t&)uint32_;
-public:
+    static constexpr uint8_t  magic_  = (const uint8_t&) uint32_;
+
+   public:
     static constexpr bool little = magic_ == 0x04;
     static constexpr bool middle = magic_ == 0x02;
-    static constexpr bool big = magic_ == 0x01;
+    static constexpr bool big    = magic_ == 0x01;
     static_assert(little || middle || big, "Cannot determine endianness!");
-private:
+
+   private:
     Endian() = delete;
 };
-namespace NNUEParser{
-    constexpr bool IsLittleEndian=Endian::little;
+namespace NNUEParser {
+constexpr bool IsLittleEndian = Endian::little;
 }
 
 #if defined(USE_AVX2)
@@ -106,10 +107,10 @@ constexpr IntType ceil_to_multiple(IntType n, IntType base) {
     return (n + base - 1) / base * base;
 }
 
-
 // Utility to read an integer (signed or unsigned, any size)
-// from a stream in little-endian order. We swap the byte order after the read if
-// necessary to return a result with the byte ordering of the compiling machine.
+// from a stream in little-endian order. We swap the byte order after the read
+// if necessary to return a result with the byte ordering of the compiling
+// machine.
 template<typename IntType>
 inline IntType read_little_endian(std::istream& stream) {
     IntType result;
@@ -131,11 +132,10 @@ inline IntType read_little_endian(std::istream& stream) {
     return result;
 }
 
-
 // Utility to write an integer (signed or unsigned, any size)
-// to a stream in little-endian order. We swap the byte order before the write if
-// necessary to always write in little-endian order, independently of the byte
-// ordering of the compiling machine.
+// to a stream in little-endian order. We swap the byte order before the write
+// if necessary to always write in little-endian order, independently of the
+// byte ordering of the compiling machine.
 template<typename IntType>
 inline void write_little_endian(std::ostream& stream, IntType value) {
 
@@ -162,7 +162,6 @@ inline void write_little_endian(std::ostream& stream, IntType value) {
     }
 }
 
-
 // Read integers in bulk from a little-endian stream.
 // This reads N integers from stream s and puts them in array out.
 template<typename IntType>
@@ -173,7 +172,6 @@ inline void read_little_endian(std::istream& stream, IntType* out, std::size_t c
         for (std::size_t i = 0; i < count; ++i)
             out[i] = read_little_endian<IntType>(stream);
 }
-
 
 // Write integers in bulk to a little-endian stream.
 // This takes N integers from array values and writes them on stream s.
@@ -186,10 +184,10 @@ inline void write_little_endian(std::ostream& stream, const IntType* values, std
             write_little_endian<IntType>(stream, values[i]);
 }
 
-
 // Read N signed integers from the stream s, putting them in the array out.
 // The stream is assumed to be compressed using the signed LEB128 format.
-// See https://en.wikipedia.org/wiki/LEB128 for a description of the compression scheme.
+// See https://en.wikipedia.org/wiki/LEB128 for a description of the compression
+// scheme.
 template<typename IntType>
 inline void read_leb_128(std::istream& stream, IntType* out, std::size_t count) {
 
@@ -236,11 +234,11 @@ inline void read_leb_128(std::istream& stream, IntType* out, std::size_t count) 
     assert(bytes_left == 0);
 }
 
-
 // Write signed integers to a stream with LEB128 compression.
 // This takes N integers from array values, compresses them with
 // the LEB128 algorithm and writes the result on the stream s.
-// See https://en.wikipedia.org/wiki/LEB128 for a description of the compression scheme.
+// See https://en.wikipedia.org/wiki/LEB128 for a description of the compression
+// scheme.
 template<typename IntType>
 inline void write_leb_128(std::ostream& stream, const IntType* values, std::size_t count) {
 

@@ -30,7 +30,10 @@ VERSION: 0.8.2
 
 #ifndef CHESS_HPP
 #define CHESS_HPP
-
+#ifndef NDEBUG
+#define NDEBUG
+#define CHESS_NO_EXCEPTIONS
+#endif
 
 #include <functional>
 #include <utility>
@@ -108,8 +111,8 @@ class Color {
 
     [[nodiscard]] constexpr underlying internal() const noexcept { return color; }
 
-    friend std::ostream& operator<<(std::ostream& os, const Color& color) {
-        return os << static_cast<std::string>(color);
+    friend std::ostream& operator<<(std::ostream& os, const Color& _color) {
+        return os << static_cast<std::string>(_color);
     }
 
     static constexpr underlying WHITE = underlying::WHITE;
@@ -412,7 +415,7 @@ class Square {
     [[nodiscard]] constexpr bool is_dark() const noexcept { return !is_light(); }
 
     /**
-     * @brief Check if the square is vali.d
+     * @brief Check if the square is valid
      * @return
      */
     [[nodiscard]] constexpr bool is_valid() const noexcept { return static_cast<std::int8_t>(sq) < 64; }
@@ -1322,7 +1325,7 @@ class Movelist {
     // Element access
 
     [[nodiscard]] constexpr reference at(size_type pos) {
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
         if (pos >= size_) {
             throw std::out_of_range("Movelist::at: pos (which is " + std::to_string(pos) + ") >= size (which is " +
                                     std::to_string(size_) + ")");
@@ -1332,7 +1335,7 @@ class Movelist {
     }
 
     [[nodiscard]] constexpr const_reference at(size_type pos) const {
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
         if (pos >= size_) {
             throw std::out_of_range("Movelist::at: pos (which is " + std::to_string(pos) + ") >= size (which is " +
                                     std::to_string(size_) + ")");
@@ -4826,7 +4829,7 @@ class uci {
                 }
             }
 
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
             throw SanParseError("Failed to parse san. At step 2: " + std::string(san) + " " + board.getFen());
 #endif
         }
@@ -4870,7 +4873,7 @@ class uci {
 
             // If we get here, the move matches our criteria
             if (foundMatch) {
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
                 throw AmbiguousMoveError("Ambiguous san: " + std::string(san) + " in " + board.getFen());
 #endif
             }
@@ -4880,7 +4883,7 @@ class uci {
         }
 
         if (!foundMatch) {
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
             throw SanParseError("Failed to parse san, illegal move: " + std::string(san) + " " + board.getFen());
 #endif
         }
@@ -4937,7 +4940,7 @@ class uci {
     };
 
     [[nodiscard]] static SanMoveInformation parseSanInfo(std::string_view san) noexcept(false) {
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
         if (san.length() < 2) {
             throw SanParseError("Failed to parse san. At step 0: " + std::string(san));
         }
@@ -5042,7 +5045,7 @@ class uci {
             throw_error = true;
         }
 
-#ifndef CHESS_NO_EXCEPTIONS
+#ifndef NDEBUG
         if (throw_error) {
             throw SanParseError("Failed to parse san. At step 1: " + std::string(san));
         }

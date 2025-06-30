@@ -20,13 +20,13 @@
 #define MEMORY_H_INCLUDED
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
-#include <cassert>
 #define ASSERT_ALIGNED(ptr, alignment) assert(reinterpret_cast<uintptr_t>(ptr) % alignment == 0)
 
 namespace NNUEParser {
@@ -61,7 +61,6 @@ void memory_deleter_array(T* ptr, FREE_FUNC free_func) {
     if (!ptr)
         return;
 
-
     // Move back on the pointer to where the size is allocated
     const size_t array_offset = std::max(sizeof(size_t), alignof(T));
     char*        raw_memory   = reinterpret_cast<char*>(ptr) - array_offset;
@@ -87,7 +86,8 @@ inline std::enable_if_t<!std::is_array_v<T>, T*> memory_allocator(ALLOC_FUNC all
     return new (raw_memory) T(std::forward<Args>(args)...);
 }
 
-// Allocates memory for an array of unknown bound and places it there with placement new
+// Allocates memory for an array of unknown bound and places it there with
+// placement new
 template<typename T, typename ALLOC_FUNC>
 inline std::enable_if_t<std::is_array_v<T>, std::remove_extent_t<T>*>
 memory_allocator(ALLOC_FUNC alloc_func, size_t num) {
@@ -98,7 +98,7 @@ memory_allocator(ALLOC_FUNC alloc_func, size_t num) {
     // Save the array size in the memory location
     char* raw_memory =
       reinterpret_cast<char*>(alloc_func(array_offset + num * sizeof(ElementType)));
-    ASSERT_ALIGNED(raw_memory, alignof(T));
+    ASSERT_ALIGNED(raw_memory, alignof(ElementType));
 
     new (raw_memory) size_t(num);
 
@@ -135,8 +135,8 @@ using LargePagePtr =
 // make_unique_large_page for single objects
 template<typename T, typename... Args>
 std::enable_if_t<!std::is_array_v<T>, LargePagePtr<T>> make_unique_large_page(Args&&... args) {
-    static_assert(alignof(T) <= 4096,
-                  "aligned_large_pages_alloc() may fail for such a big alignment requirement of T");
+    static_assert(alignof(T) <= 4096, "aligned_large_pages_alloc() may fail for "
+                                      "such a big alignment requirement of T");
 
     T* obj = memory_allocator<T>(aligned_large_pages_alloc, std::forward<Args>(args)...);
 
@@ -149,7 +149,8 @@ std::enable_if_t<std::is_array_v<T>, LargePagePtr<T>> make_unique_large_page(siz
     using ElementType = std::remove_extent_t<T>;
 
     static_assert(alignof(ElementType) <= 4096,
-                  "aligned_large_pages_alloc() may fail for such a big alignment requirement of T");
+                  "aligned_large_pages_alloc() may fail for such a big alignment "
+                  "requirement of T");
 
     ElementType* memory = memory_allocator<T>(aligned_large_pages_alloc, num);
 
@@ -198,19 +199,17 @@ std::enable_if_t<std::is_array_v<T>, AlignedPtr<T>> make_unique_aligned(size_t n
     return AlignedPtr<T>(memory);
 }
 
-
 // Get the first aligned element of an array.
-// ptr must point to an array of size at least `sizeof(T) * N + alignment` bytes,
-// where N is the number of elements in the array.
+// ptr must point to an array of size at least `sizeof(T) * N + alignment`
+// bytes, where N is the number of elements in the array.
 template<uintptr_t Alignment, typename T>
 T* align_ptr_up(T* ptr) {
-    static_assert(alignof(T) < Alignment);
+    static_assert(alignof(T) <= Alignment);
 
     const uintptr_t ptrint = reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(ptr));
     return reinterpret_cast<T*>(
       reinterpret_cast<char*>((ptrint + (Alignment - 1)) / Alignment * Alignment));
 }
-
 
 }  // namespace NNUEParser
 

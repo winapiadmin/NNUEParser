@@ -18,15 +18,13 @@
 
 #ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
-#include <cstdint>
-#include <cassert>
 #include <bitset>
-namespace NNUEParser
-{
-    // clang-format off
+#include <cassert>
+#include <cstdint>
+namespace NNUEParser {
+// clang-format off
 
-    enum Color : int8_t
-    {
+    enum Color : int8_t{
         WHITE,
         BLACK,
         COLOR_NB = 2
@@ -45,6 +43,7 @@ namespace NNUEParser
         PIECE_NB = 16
     };
     constexpr Piece make_piece(Color c, PieceType pt) { return Piece((c << 3) + pt); }
+    constexpr PieceType type_of(Piece pc) { return PieceType(pc & 7); }
 enum Square : int8_t {
     SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
     SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
@@ -67,22 +66,20 @@ ENABLE_INCR_OPERATORS_ON(PieceType)
 ENABLE_INCR_OPERATORS_ON(Square)
 
     #undef ENABLE_INCR_OPERATORS_ON
-    // clang-format on
-    // Keep track of what a move changes on the board (used by NNUE)
-    struct DirtyPiece
-    {
-        Piece pc;        // this is never allowed to be NO_PIECE
-        Square from, to; // to should be SQ_NONE for promotions
+// clang-format on
+// Keep track of what a move changes on the board (used by NNUE)
+struct DirtyPiece {
+    Piece  pc;        // this is never allowed to be NO_PIECE
+    Square from, to;  // to should be SQ_NONE for promotions
 
-        // if {add,remove}_sq is SQ_NONE, {add,remove}_pc is allowed to be
-        // uninitialized
-        // castling uses add_sq and remove_sq to remove and add the rook
-        Square remove_sq, add_sq;
-        Piece remove_pc, add_pc;
-    };
-    constexpr int MAX_PLY = 246;
+    // if {add,remove}_sq is SQ_NONE, {add,remove}_pc is allowed to be
+    // uninitialized
+    // castling uses add_sq and remove_sq to remove and add the rook
+    Square remove_sq, add_sq;
+    Piece  remove_pc, add_pc;
+};
 
-    using Bitboard = uint64_t;
+using Bitboard = uint64_t;
 
 // Counts the number of non-zero bits in a bitboard.
 inline int popcount(Bitboard b) {
@@ -102,76 +99,87 @@ inline int popcount(Bitboard b) {
 #endif
 }
 
-    // Returns the least significant bit in a non-zero bitboard.
-    inline Square lsb(Bitboard b)
-    {
-        assert(b);
+// Returns the least significant bit in a non-zero bitboard.
+inline Square lsb(Bitboard b) {
+    assert(b);
 
-#if defined(__GNUC__) // GCC, Clang, ICX
+#if defined(__GNUC__)  // GCC, Clang, ICX
 
-        return Square(__builtin_ctzll(b));
+    return Square(__builtin_ctzll(b));
 
 #elif defined(_MSC_VER)
-#ifdef _WIN64 // MSVC, WIN64
+    #ifdef _WIN64  // MSVC, WIN64
 
-        unsigned long idx;
-        _BitScanForward64(&idx, b);
+    unsigned long idx;
+    _BitScanForward64(&idx, b);
+    return Square(idx);
+
+    #else  // MSVC, WIN32
+    unsigned long idx;
+
+    if (b & 0xffffffff)
+    {
+        _BitScanForward(&idx, int32_t(b));
         return Square(idx);
-
-#else // MSVC, WIN32
-        unsigned long idx;
-
-        if (b & 0xffffffff)
-        {
-            _BitScanForward(&idx, int32_t(b));
-            return Square(idx);
-        }
-        else
-        {
-            _BitScanForward(&idx, int32_t(b >> 32));
-            return Square(idx + 32);
-        }
-#endif
-#else // Compiler is neither GCC nor MSVC compatible
-#error "Compiler not supported."
-#endif
     }
-    // Finds and clears the least significant bit in a non-zero bitboard.
-    inline Square pop_lsb(Bitboard &b)
+    else
     {
-        assert(b);
-        const Square s = lsb(b);
-        b &= b - 1;
-        return s;
+        _BitScanForward(&idx, int32_t(b >> 32));
+        return Square(idx + 32);
     }
-    template <typename T, std::size_t MaxSize>
-    class ValueList
-    {
-
-    public:
-        std::size_t size() const { return size_; }
-        void push_back(const T &value) { values_[size_++] = value; }
-        const T *begin() const { return values_; }
-        const T *end() const { return values_ + size_; }
-        const T &operator[](int index) const { return values_[index]; }
-
-    private:
-        T values_[MaxSize];
-        std::size_t size_ = 0;
-    };
-    using Value = int;
-
-    constexpr Value VALUE_ZERO = 0;
-    constexpr Value VALUE_DRAW = 0;
-    constexpr Value VALUE_NONE = 32002;
-    constexpr Value VALUE_INFINITE = 32001;
-
-    constexpr Value VALUE_MATE = 32000;
-    constexpr Value VALUE_MATE_IN_MAX_PLY = VALUE_MATE - MAX_PLY;
-    constexpr Value VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY;
-
-    constexpr Value VALUE_TB = VALUE_MATE_IN_MAX_PLY - 1;
-    constexpr Value VALUE_TB_WIN_IN_MAX_PLY = VALUE_TB - MAX_PLY;
-    constexpr Value VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY;
+    #endif
+#else  // Compiler is neither GCC nor MSVC compatible
+    #error "Compiler not supported."
+#endif
 }
+// Finds and clears the least significant bit in a non-zero bitboard.
+inline Square pop_lsb(Bitboard& b) {
+    assert(b);
+    const Square s = lsb(b);
+    b &= b - 1;
+    return s;
+}
+template<typename T, std::size_t MaxSize>
+class ValueList {
+
+   public:
+    std::size_t size() const { return size_; }
+    void        push_back(const T& value) { values_[size_++] = value; }
+    const T*    begin() const { return values_; }
+    const T*    end() const { return values_ + size_; }
+    const T&    operator[](int index) const { return values_[index]; }
+
+   private:
+    T           values_[MaxSize];
+    std::size_t size_ = 0;
+};
+}  // namespace NNUEParser
+constexpr int MAX_PLY = 246;
+using Value           = int;
+
+constexpr Value VALUE_ZERO     = 0;
+constexpr Value VALUE_DRAW     = 0;
+constexpr Value VALUE_NONE     = 32002;
+constexpr Value VALUE_INFINITE = 32001;
+
+constexpr Value VALUE_MATE             = 32000;
+constexpr Value VALUE_MATE_IN_MAX_PLY  = VALUE_MATE - MAX_PLY;
+constexpr Value VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY;
+
+constexpr Value VALUE_TB                 = VALUE_MATE_IN_MAX_PLY - 1;
+constexpr Value VALUE_TB_WIN_IN_MAX_PLY  = VALUE_TB - MAX_PLY;
+constexpr Value VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY;
+constexpr Value PawnValue                = 208;
+constexpr Value KnightValue              = 781;
+constexpr Value BishopValue              = 825;
+constexpr Value RookValue                = 1276;
+constexpr Value QueenValue               = 2538;
+constexpr Value mate_in(int ply) { return VALUE_MATE - ply; }
+
+constexpr Value mated_in(int ply) { return -VALUE_MATE + ply; }
+constexpr bool  is_win(Value value) { return value >= VALUE_TB_WIN_IN_MAX_PLY; }
+
+constexpr bool is_loss(Value value) { return value <= VALUE_TB_LOSS_IN_MAX_PLY; }
+
+constexpr bool is_decisive(Value value) { return is_win(value) || is_loss(value); }
 #endif

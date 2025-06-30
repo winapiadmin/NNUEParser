@@ -18,24 +18,20 @@
 
 #ifndef NETWORK_H_INCLUDED
 #define NETWORK_H_INCLUDED
-#include <tuple>
 #include <fstream>
+#include <tuple>
 
-#include "common.h"
-#include "memory.h"
 #include "architecture.h"
+#include "common.h"
 #include "feature_transformer.h"
-enum class EmbeddedNNUEType {
-    BIG,
-    SMALL,
-};
+#include "memory.h"
 namespace NNUEParser {
 
 enum class EmbeddedNNUEType {
     BIG,
     SMALL,
 };
-using Value=int;
+using Value         = int;
 using NetworkOutput = std::tuple<Value, Value>;
 struct EvalFile {
     // Default net name, will use one of the EvalFileDefaultName* macros defined
@@ -49,25 +45,27 @@ struct EvalFile {
 template<typename Arch, typename Transformer>
 class Network {
     static constexpr IndexType FTDimensions = Arch::TransformedFeatureDimensions;
-    public:
+
+   public:
     void load(const std::string& path);
 
     NetworkOutput evaluate(const Position&                         pos,
                            AccumulatorStack&                       accumulatorStack,
                            AccumulatorCaches::Cache<FTDimensions>* cache) const;
     void verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const;
-    private:
+
+   private:
     void initialize();
     // Input feature converter
     LargePagePtr<Transformer> featureTransformer;
 
     // Evaluation function
-    AlignedPtr<Arch[]> network;
-    bool read_header(std::istream&, std::uint32_t*, std::string*) const;
-    bool read_parameters(std::istream&, std::string&) const;
+    AlignedPtr<Arch[]>             network;
+    bool                           read_header(std::istream&, std::uint32_t*, std::string*) const;
+    bool                           read_parameters(std::istream&, std::string&) const;
     static constexpr std::uint32_t hash = Transformer::get_hash_value() ^ Arch::get_hash_value();
-    EvalFile         evalFile;
-    EmbeddedNNUEType embeddedType;
+    EvalFile                       evalFile;
+    EmbeddedNNUEType               embeddedType;
     template<IndexType Size>
     friend struct AccumulatorCaches::Cache;
 
@@ -85,14 +83,13 @@ using BigNetworkArchitecture = NetworkArchitecture<TransformedFeatureDimensionsB
 using NetworkBig   = Network<BigNetworkArchitecture, BigFeatureTransformer>;
 using NetworkSmall = Network<SmallNetworkArchitecture, SmallFeatureTransformer>;
 
-
 struct Networks {
     Networks(NetworkBig&& nB, NetworkSmall&& nS) :
         big(std::move(nB)),
         small(std::move(nS)) {}
-
+    Networks();
     NetworkBig   big;
     NetworkSmall small;
 };
-} // namespace NNUEParser
+}  // namespace NNUEParser
 #endif

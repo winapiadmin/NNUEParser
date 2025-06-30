@@ -37,21 +37,22 @@ namespace NNUEParser {
 using FeatureSet = Features::HalfKAv2_hm;
 
 // Number of input feature dimensions after conversion
-constexpr uint32_t  TransformedFeatureDimensionsBig = 3072;
-constexpr int       L2Big                           = 15;
-constexpr int       L3Big                           = 32;
+constexpr uint32_t TransformedFeatureDimensionsBig = 3072;
+constexpr int      L2Big                           = 15;
+constexpr int      L3Big                           = 32;
 
-constexpr uint32_t  TransformedFeatureDimensionsSmall = 128;
-constexpr int       L2Small                           = 15;
-constexpr int       L3Small                           = 32;
+constexpr uint32_t TransformedFeatureDimensionsSmall = 128;
+constexpr int      L2Small                           = 15;
+constexpr int      L3Small                           = 32;
 
-constexpr uint32_t  PSQTBuckets = 8;
-constexpr uint32_t  LayerStacks = 8;
+constexpr uint32_t PSQTBuckets = 8;
+constexpr uint32_t LayerStacks = 8;
 // If vector instructions are enabled, we update and refresh the
 // accumulator tile by tile such that each tile fits in the CPU's
 // vector registers.
 static_assert(PSQTBuckets % 8 == 0,
-              "Per feature PSQT values cannot be processed at granularity lower than 8 at a time.");
+              "Per feature PSQT values cannot be processed at granularity "
+              "lower than 8 at a time.");
 
 template<IndexType L1, int L2, int L3>
 struct NetworkArchitecture {
@@ -126,8 +127,9 @@ struct NetworkArchitecture {
         ac_1.propagate(buffer.fc_1_out, buffer.ac_1_out);
         fc_2.propagate(buffer.ac_1_out, buffer.fc_2_out);
 
-        // buffer.fc_0_out[FC_0_OUTPUTS] is such that 1.0 is equal to 127*(1<<WeightScaleBits) in
-        // quantized form, but we want 1.0 to be equal to 600*OutputScale
+        // buffer.fc_0_out[FC_0_OUTPUTS] is such that 1.0 is equal to
+        // 127*(1<<WeightScaleBits) in quantized form, but we want 1.0 to be equal
+        // to 600*OutputScale
         std::int32_t fwdOut =
           (buffer.fc_0_out[FC_0_OUTPUTS]) * (600 * OutputScale) / (127 * (1 << WeightScaleBits));
         std::int32_t outputValue = buffer.fc_2_out[0] + fwdOut;
@@ -136,5 +138,5 @@ struct NetworkArchitecture {
     }
 };
 
-}
+}  // namespace NNUEParser
 #endif

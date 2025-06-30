@@ -27,9 +27,9 @@
 #include <cstring>
 #include <vector>
 
-#include "types.h"
 #include "architecture.h"
 #include "common.h"
+#include "types.h"
 
 namespace NNUEParser {
 class Position;
@@ -50,7 +50,6 @@ struct alignas(CacheLineSize) Accumulator {
     std::int32_t               psqtAccumulation[COLOR_NB][PSQTBuckets];
     std::array<bool, COLOR_NB> computed;
 };
-
 
 // AccumulatorCaches struct provides per-thread accumulator caches, where each
 // cache contains multiple entries for each of the possible king squares.
@@ -106,7 +105,6 @@ struct AccumulatorCaches {
     Cache<TransformedFeatureDimensionsSmall> small;
 };
 
-
 struct AccumulatorState {
     Accumulator<TransformedFeatureDimensionsBig>   accumulatorBig;
     Accumulator<TransformedFeatureDimensionsSmall> accumulatorSmall;
@@ -139,12 +137,11 @@ struct AccumulatorState {
     void reset(const DirtyPiece& dp) noexcept;
 };
 
-
 class AccumulatorStack {
    public:
     AccumulatorStack() :
-        accumulators(MAX_PLY + 1),
-        size{1} {}
+        size{1},
+        accumulators(MAX_PLY + 1) {}
 
     [[nodiscard]] const AccumulatorState& latest() const noexcept;
 
@@ -153,9 +150,13 @@ class AccumulatorStack {
     void pop() noexcept;
 
     template<IndexType Dimensions>
-    void evaluate(const Position&                       pos,
-                  const FeatureTransformer<Dimensions>& featureTransformer,
-                  AccumulatorCaches::Cache<Dimensions>& cache) noexcept;
+    void                      evaluate(const Position&                       pos,
+                                       const FeatureTransformer<Dimensions>& featureTransformer,
+                                       AccumulatorCaches::Cache<Dimensions>& cache) noexcept;
+    [[nodiscard]] std::size_t get_size() const noexcept { return size; }
+
+   private:
+    std::size_t size;
 
    private:
     [[nodiscard]] AccumulatorState& mut_latest() noexcept;
@@ -179,7 +180,6 @@ class AccumulatorStack {
                                      const std::size_t                     end) noexcept;
 
     std::vector<AccumulatorState> accumulators;
-    std::size_t                   size;
 };
 
 }  // namespace NNUEParser

@@ -1,4 +1,4 @@
-#include "network.h"
+	#include "network.h"
 #include "position.h"
 #include "chess.hpp"
 #include <cassert>
@@ -94,6 +94,7 @@ int to_cp(NNUEParser::Value v, const NNUEParser::Position& pos) {
     return std::round(100 * int(v) / a);
 }
 int main(){
+    std::cout << "DISCLAIMER: Using Stockfish's NNUE and output requires converting to centipawns on output\n";
     NNUEParser::NetworkBig nBig;
     NNUEParser::NetworkSmall nSmall;
     nBig.load(EvalFileDefaultNameBig);
@@ -103,22 +104,8 @@ int main(){
     NNUEParser::Networks nn(std::move(nBig), std::move(nSmall));
     NNUEParser::AccumulatorStack stack;
     NNUEParser::AccumulatorCaches cache(nn);
-    chess::Board b;
+    chess::Board b("rnbqk1nr/pppp1ppp/8/2b1p3/8/N2P1N2/PPP1PPPP/R1BQKB1R b KQkq - 3 3");
     NNUEParser::Position pos(b);
 
-    std::cout << "DISCLAIMER: Using this NNUE model and output requires converting to centipawns\n";
-
-    constexpr int N = 10000000; // Number of evaluations to benchmark
-
-    auto start = std::chrono::high_resolution_clock::now();
-    int total = 0;
-    for (int i = 0; i < N; ++i) {
-        total = to_cp(NNUEParser::evaluate(nn, pos, stack, cache, 0), pos);
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Total time: " << elapsed.count() << " ms\n";
-    std::cout << "Average time per evaluation: " << (elapsed.count() / N) << " ms, "<<(1.0/(elapsed.count()/N))<<" eval/s\n";
-    std::cout << "Final dummy value: " << total << "\n";
+    total = to_cp(NNUEParser::evaluate(nn, pos, stack, cache, 0), pos);
 }
